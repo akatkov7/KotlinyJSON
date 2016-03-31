@@ -1,0 +1,67 @@
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
+apply plugin: 'com.jfrog.bintray'
+apply plugin: 'com.github.dcendents.android-maven'
+
+group = 'me.akatkov.smartintent' // Change this to match your package name
+version = '0.1' // Change this to match your version number
+
+android {
+    compileSdkVersion 23
+    buildToolsVersion "23.0.2"
+
+    defaultConfig {
+        minSdkVersion 15
+        targetSdkVersion 23
+        versionCode 1
+        versionName "0.1"
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+    sourceSets {
+        main.java.srcDirs += 'src/main/kotlin'
+    }
+}
+
+dependencies {
+    compile fileTree(dir: 'libs', include: ['*.jar'])
+    testCompile 'junit:junit:4.12'
+    compile 'com.android.support:appcompat-v7:23.2.1'
+    compile "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
+    compile "org.jetbrains.kotlin:kotlin-reflect:$kotlin_version"
+    compile "org.json:json:20160212"
+}
+
+task generateSourcesJar(type: Jar) {
+    from android.sourceSets.main.java.srcDirs
+    classifier 'sources'
+}
+
+artifacts {
+    archives generateSourcesJar
+}
+
+bintray {
+    user = 'akatkov'
+    key = '69db9a17fc4448609e869ac93debb25f8580da6f'
+    pkg {
+        repo = 'maven'
+        name = 'KotlinyJSON'
+
+        version {
+            name = '0.1'
+            desc = 'A simple JSON class that has better usage than JSONObject and JSON->Object, Object->JSON conversions.'
+            released  = new Date()
+            vcsTag = '0.1'
+        }
+
+        licenses = ['MIT']
+        vcsUrl = 'https://github.com/akatkov7/KotlinyJSON.git'
+        websiteUrl = 'https://github.com/akatkov7/KotlinyJSON'
+    }
+    configurations = ['archives']
+}
