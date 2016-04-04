@@ -3,7 +3,7 @@ apply plugin: 'kotlin-android'
 apply plugin: 'com.jfrog.bintray'
 apply plugin: 'com.github.dcendents.android-maven'
 
-group = 'me.akatkov.smartintent' // Change this to match your package name
+group = 'me.akatkov.kotlinyjson' // Change this to match your package name
 version = '0.1' // Change this to match your version number
 
 android {
@@ -45,9 +45,15 @@ artifacts {
     archives generateSourcesJar
 }
 
+def getBintrayAPIKey() {
+    def Properties props = new Properties()
+    props.load(new FileInputStream(new File('bintray.properties')))
+    return props['API_KEY']
+}
+
 bintray {
     user = 'akatkov'
-    key = '69db9a17fc4448609e869ac93debb25f8580da6f'
+    key = getBintrayAPIKey()
     pkg {
         repo = 'maven'
         name = 'KotlinyJSON'
