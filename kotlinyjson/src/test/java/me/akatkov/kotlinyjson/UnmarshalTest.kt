@@ -32,18 +32,6 @@ class UnmarshalTest : junit.framework.TestCase() {
         assertNull(user)
     }
 
-    data class User(val id: Long = 0, val name: String = "")
-
-    fun testSimpleFailuresUnmarshal() {
-        val json = JSON("{\"name\":\"Johnny\",\"id\":1234567}")
-        try {
-            json.unmarshal(User::class)
-            fail()
-        } catch (e: Exception) {
-            assertTrue(e is JSONUnmarshalException)
-        }
-    }
-
     data class IgnoreUser(@Ignore val id: Long = 0, @Ignore val name: String = "")
 
     fun testSimpleIgnoreUnmarshal() {
@@ -185,7 +173,19 @@ class UnmarshalTest : junit.framework.TestCase() {
         assertEquals("Johnny", user.userName)
     }
 
-    data class ImmutableUser(var id: Long, var name: String)
+    data class NoDefaultUser(var id: Long, var name: String)
+
+    fun testSimpleNoDefaultsSuccessUnmarshal() {
+        val json = JSON("{\"name\":\"Johnny\",\"id\":1234567}")
+        val user = json.unmarshal(NoDefaultUser::class)
+
+        assertNotNull(user)
+        user!!
+        assertEquals(1234567, user.id)
+        assertEquals("Johnny", user.name)
+    }
+
+    data class ImmutableUser(val id: Long, val name: String)
 
     fun testSimpleImmutableSuccessUnmarshal() {
         val json = JSON("{\"name\":\"Johnny\",\"id\":1234567}")
@@ -196,16 +196,4 @@ class UnmarshalTest : junit.framework.TestCase() {
         assertEquals(1234567, user.id)
         assertEquals("Johnny", user.name)
     }
-
-    //    data class NoDefaultsUser(var id: Long, var name: String)
-    //
-    //    fun testSimpleNoDefaultsSuccessUnmarshal() {
-    //        val json = JSON("{\"name\":\"Johnny\",\"id\":1234567}")
-    //        val user = json.unmarshal(NoDefaultsUser::class)
-    //
-    //        assertNotNull(user)
-    //        user!!
-    //        assertEquals(1234567, user.id)
-    //        assertEquals("Johnny", user.name)
-    //    }
 }

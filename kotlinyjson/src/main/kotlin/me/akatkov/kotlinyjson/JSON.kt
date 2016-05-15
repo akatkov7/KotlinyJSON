@@ -291,17 +291,14 @@ class JSON {
             var keyName = prop.name
             val mutProp = prop as? KMutableProperty1<*, *>
             if (mutProp == null) {
-                var shouldThrow = true
+                var ignored = false
                 prop.annotations.forEach {
                     if (it is Ignore) {
                         totalProperties--
-                        shouldThrow = false
+                        ignored = true
                     }
                 }
-                if (shouldThrow)
-                    throw JSONUnmarshalException("All properties must be mutable unless marked as @Ignore.")
-                else
-                    continue
+                if (ignored) continue
             } else {
                 clazz.annotations.forEach {
                     if (it is SnakeCase) {
@@ -316,13 +313,13 @@ class JSON {
                     }
                 }
             }
-            val isNullable = mutProp.returnType.isMarkedNullable
+            val isNullable = prop.returnType.isMarkedNullable
             if (isNullable) {
                 totalProperties--
             }
             // since we successfully casted to a mutable property, the setter should exist
             var valueToSet: Any? = null
-            when(mutProp.returnType) {
+            when(prop.returnType) {
             // if the property isn't nullable, then we can return because this unmarshal won't succeed
                 Int::class.defaultType -> valueToSet = this[keyName].int ?: return null
                 optionalMap["Int?"]!! -> valueToSet = this[keyName].int
@@ -346,7 +343,7 @@ class JSON {
                         val array = this[keyName].list
                         // if it's not a list
                         if (array == null) {
-                            val propertyClazz = mutProp.javaField?.type?.kotlin ?: throw JSONUnmarshalException("Unknown property class")
+                            val propertyClazz = prop.javaField?.type?.kotlin ?: throw JSONUnmarshalException("Unknown property class")
                             val obj = this[keyName].unmarshal(propertyClazz)
                             if (obj == null) {
                                 if (!isNullable) {
