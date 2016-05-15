@@ -17,7 +17,7 @@ class UnmarshalTest : junit.framework.TestCase() {
 
     fun testSimpleMutableSuccessUnmarshal() {
         val json = JSON("{\"name\":\"Johnny\",\"id\":1234567}")
-        val user = json.unmarshal(MutableUser())
+        val user = json.unmarshal(MutableUser::class)
 
         assertNotNull(user)
         user!!
@@ -27,7 +27,7 @@ class UnmarshalTest : junit.framework.TestCase() {
 
     fun testSimpleMutableFailureUnmarshal() {
         val json = JSON("{\"name\":\"Johnny\",\"idd\":1234567}")
-        val user = json.unmarshal(MutableUser())
+        val user = json.unmarshal(MutableUser::class)
 
         assertNull(user)
     }
@@ -37,7 +37,7 @@ class UnmarshalTest : junit.framework.TestCase() {
     fun testSimpleFailuresUnmarshal() {
         val json = JSON("{\"name\":\"Johnny\",\"id\":1234567}")
         try {
-            json.unmarshal(User())
+            json.unmarshal(User::class)
             fail()
         } catch (e: Exception) {
             assertTrue(e is JSONUnmarshalException)
@@ -48,7 +48,7 @@ class UnmarshalTest : junit.framework.TestCase() {
 
     fun testSimpleIgnoreUnmarshal() {
         val json = JSON("{\"name\":\"Johnny\",\"id\":1234567}")
-        val user = json.unmarshal(IgnoreUser())
+        val user = json.unmarshal(IgnoreUser::class)
 
         assertNotNull(user)
         user!!
@@ -60,7 +60,7 @@ class UnmarshalTest : junit.framework.TestCase() {
 
     fun testSimpleModifiedKeyUnmarshal() {
         val json = JSON("{\"name\":\"Johnny\",\"id\":1234567}")
-        val user = json.unmarshal(ModifiedKeyUser())
+        val user = json.unmarshal(ModifiedKeyUser::class)
 
         assertNotNull(user)
         user!!
@@ -73,7 +73,7 @@ class UnmarshalTest : junit.framework.TestCase() {
 
     fun testSimpleRecursiveUnmarshal() {
         val json = JSON("{\"name\":{\"first\":\"Johnny\",\"last\":\"Bravo\"},\"id\":1234567}")
-        val user = json.unmarshal(CompositeUser())
+        val user = json.unmarshal(CompositeUser::class)
 
         assertNotNull(user)
         user!!
@@ -86,7 +86,7 @@ class UnmarshalTest : junit.framework.TestCase() {
 
     fun testSimpleListRecursiveUnmarshal() {
         val json = JSON("{\"names\":[{\"first\":\"Johnny\",\"last\":\"Bravo\"},{\"first\":\"Little\",\"last\":\"Suzy\"}],\"id\":1234567}")
-        val user = json.unmarshal(ListCompositeUser())
+        val user = json.unmarshal(ListCompositeUser::class)
 
         assertNotNull(user)
         user!!
@@ -102,7 +102,7 @@ class UnmarshalTest : junit.framework.TestCase() {
 
     fun testSimpleNullableMissingSuccessUnmarshal() {
         val json = JSON("{\"named\":\"Johnny\",\"id\":1234567}")
-        val user = json.unmarshal(NullableUser())
+        val user = json.unmarshal(NullableUser::class)
 
         assertNotNull(user)
         user!!
@@ -112,7 +112,7 @@ class UnmarshalTest : junit.framework.TestCase() {
 
     fun testSimpleNullableSuccessUnmarshal() {
         val json = JSON("{\"name\":\"Johnny\",\"id\":1234567}")
-        val user = json.unmarshal(NullableUser())
+        val user = json.unmarshal(NullableUser::class)
 
         assertNotNull(user)
         user!!
@@ -124,7 +124,7 @@ class UnmarshalTest : junit.framework.TestCase() {
 
     fun testSimpleNullableRecursiveSuccessUnmarshal() {
         val json = JSON("{\"named\":{\"first\":\"Johnny\",\"last\":\"Bravo\"},\"id\":1234567}")
-        val user = json.unmarshal(NullableRecursiveUser())
+        val user = json.unmarshal(NullableRecursiveUser::class)
 
         assertNotNull(user)
         user!!
@@ -136,7 +136,7 @@ class UnmarshalTest : junit.framework.TestCase() {
 
     fun testSimpleNullableListSuccessUnmarshal() {
         val json = JSON("{\"namesd\":[\"Johnny\"],\"id\":1234567}")
-        val user = json.unmarshal(NullableListUser())
+        val user = json.unmarshal(NullableListUser::class)
 
         assertNotNull(user)
         user!!
@@ -149,7 +149,7 @@ class UnmarshalTest : junit.framework.TestCase() {
 
     fun testSimpleNullableListRecursiveSuccessUnmarshal() {
         val json = JSON("{\"names\":[\"Johnny\", null, \"Bravo\"],\"id\":1234567}")
-        val user = json.unmarshal(NullableListRecursiveUser())
+        val user = json.unmarshal(NullableListRecursiveUser::class)
 
         assertNotNull(user)
         user!!
@@ -164,7 +164,7 @@ class UnmarshalTest : junit.framework.TestCase() {
 
     fun testSnakeMutableSuccessUnmarshal() {
         val json = JSON("{\"user_name\":\"Johnny\",\"user_id\":1234567}")
-        val user = json.unmarshal(SnakeUser())
+        val user = json.unmarshal(SnakeUser::class)
 
         assertNotNull(user)
         user!!
@@ -177,12 +177,24 @@ class UnmarshalTest : junit.framework.TestCase() {
 
     fun testCamelMutableSuccessUnmarshal() {
         val json = JSON("{\"UserName\":\"Johnny\",\"UserId\":1234567}")
-        val user = json.unmarshal(CamelUser())
+        val user = json.unmarshal(CamelUser::class)
 
         assertNotNull(user)
         user!!
         assertEquals(1234567, user.userId)
         assertEquals("Johnny", user.userName)
+    }
+
+    data class ImmutableUser(var id: Long, var name: String)
+
+    fun testSimpleImmutableSuccessUnmarshal() {
+        val json = JSON("{\"name\":\"Johnny\",\"id\":1234567}")
+        val user = json.unmarshal(ImmutableUser::class)
+
+        assertNotNull(user)
+        user!!
+        assertEquals(1234567, user.id)
+        assertEquals("Johnny", user.name)
     }
 
     //    data class NoDefaultsUser(var id: Long, var name: String)

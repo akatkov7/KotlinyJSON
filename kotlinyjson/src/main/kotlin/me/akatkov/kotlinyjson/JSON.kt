@@ -4,11 +4,9 @@ import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 import java.io.*
-import java.lang.reflect.Constructor
 import java.util.*
 import kotlin.reflect.*
-import kotlin.reflect.jvm.javaGetter
-import kotlin.reflect.jvm.javaSetter
+import kotlin.reflect.jvm.javaField
 
 @Target(AnnotationTarget.CLASS)
 annotation class SnakeCase
@@ -134,7 +132,7 @@ class JSON {
     }
 
     fun isNullJSON(): Boolean {
-        return map == null
+        return map == null && list == null
     }
 
     val boolean: Boolean?
@@ -258,17 +256,37 @@ class JSON {
     private val _booleanNullable: Boolean? = null
     private val optionalMap: Map<String, KType> =
             hashMapOf(
-                    "Int?" to this.javaClass.kotlin.memberProperties.filter { it.name.equals("_intNullable") }.first().returnType,
-                    "Long?" to this.javaClass.kotlin.memberProperties.filter { it.name.equals("_longNullable") }.first().returnType,
-                    "Double?" to this.javaClass.kotlin.memberProperties.filter { it.name.equals("_doubleNullable") }.first().returnType,
-                    "String?" to this.javaClass.kotlin.memberProperties.filter { it.name.equals("_stringNullable") }.first().returnType,
-                    "Boolean?" to this.javaClass.kotlin.memberProperties.filter { it.name.equals("_booleanNullable") }.first().returnType)
+                    "Int?" to JSON::class.memberProperties.filter { it.name.equals("_intNullable") }.first().returnType,
+                    "Long?" to JSON::class.memberProperties.filter { it.name.equals("_longNullable") }.first().returnType,
+                    "Double?" to JSON::class.memberProperties.filter { it.name.equals("_doubleNullable") }.first().returnType,
+                    "String?" to JSON::class.memberProperties.filter { it.name.equals("_stringNullable") }.first().returnType,
+                    "Boolean?" to JSON::class.memberProperties.filter { it.name.equals("_booleanNullable") }.first().returnType)
 
-    fun <T : Any> unmarshal(instance: T): T? {
-        val clazz = instance.javaClass.kotlin
+    fun <T : Any> unmarshal(clazz: KClass<T>): T? {
+        val propertyMap = unmarshalHelper(clazz) ?: return null
+        val propertyNames = propertyMap.keys.map { it.name }
+        val parameterMap: MutableMap<KParameter, Any?> = mutableMapOf()
+        // convert property map to parameter map
+        clazz.constructors.forEach { constructor ->
+            if (constructor.parameters.map { it.name }.containsAll(propertyNames)) {
+                constructor.parameters.forEach { parameter ->
+                    for ((key, value) in propertyMap) {
+                        if (parameter.name == key.name) {
+                            parameterMap.put(parameter, value)
+                        }
+                    }
+                }
+                return constructor.callBy(parameterMap)
+            }
+        }
+        return null
+    }
+
+    private fun <T : Any> unmarshalHelper(clazz: KClass<T>): Map<KProperty1<T, *>, Any?>? {
         val properties = clazz.declaredMemberProperties
         var totalProperties = properties.size
         var setProperties = 0
+        val constructorArgs: MutableMap<KProperty1<T, *>, Any?> = mutableMapOf()
         for (prop in properties) {
             var keyName = prop.name
             val mutProp = prop as? KMutableProperty1<*, *>
@@ -298,12 +316,11 @@ class JSON {
                     }
                 }
             }
-            var isNullable = mutProp.returnType.isMarkedNullable
+            val isNullable = mutProp.returnType.isMarkedNullable
             if (isNullable) {
                 totalProperties--
             }
             // since we successfully casted to a mutable property, the setter should exist
-            val setter = mutProp.javaSetter!!
             var valueToSet: Any? = null
             when(mutProp.returnType) {
             // if the property isn't nullable, then we can return because this unmarshal won't succeed
@@ -318,13 +335,19 @@ class JSON {
                 Boolean::class.defaultType -> valueToSet = this[keyName].boolean ?: return null
                 optionalMap["Boolean?"]!! -> valueToSet = this[keyName].boolean
                 else -> {
-                    val getter = mutProp.javaGetter!!
-                    // check if it is a List first
-                    val array = this[keyName].list
-                    // if it's not a list
-                    if (array == null) {
-                        getter.invoke(instance)?.let {
-                            val obj = this[keyName].unmarshal(it)
+                    if (this[keyName].isNullJSON()) {
+                        if (isNullable) {
+                            valueToSet = null
+                        } else {
+                            return null
+                        }
+                    } else {
+                        // check if it is a List first
+                        val array = this[keyName].list
+                        // if it's not a list
+                        if (array == null) {
+                            val propertyClazz = mutProp.javaField?.type?.kotlin ?: throw JSONUnmarshalException("Unknown property class")
+                            val obj = this[keyName].unmarshal(propertyClazz)
                             if (obj == null) {
                                 if (!isNullable) {
                                     return null
@@ -332,87 +355,55 @@ class JSON {
                             } else {
                                 valueToSet = obj
                             }
-                        }
-                    } else {
-                        var listClazz: KClass<*>? = null
-                        var optional = false
-                        prop.annotations.forEach {
-                            if (it is ListClass) {
-                                listClazz = it.clazz
-                                optional = it.optional
-                            }
-                        }
-                        if (listClazz == null) throw JSONUnmarshalException("List properties must specify their class generic in @ListClass.")
-                        var listClazzConstructor: Constructor<*>? = null
-                        listClazz!!.java.constructors.forEach {
-                            // no parameterCount on Android
-                            if (it.parameterTypes.size == 0) {
-                                listClazzConstructor = it
-                            }
-                        }
-                        if (listClazzConstructor == null) throw JSONUnmarshalException("List class generics must have a no (0) argument constructor.")
-
-                        if (optional) {
-                            var listOfClazzInstances = arrayListOf<Any?>()
-
-                            for (i in 0..(array.size - 1)) {
-                                when(listClazz!!) {
-                                    Int::class -> listOfClazzInstances.add(array[i].int)
-                                    Long::class -> listOfClazzInstances.add(array[i].long)
-                                    Double::class -> listOfClazzInstances.add(array[i].double)
-                                    String::class -> listOfClazzInstances.add(array[i].string)
-                                    Boolean::class -> listOfClazzInstances.add(array[i].boolean)
-                                    else -> listOfClazzInstances.add(array[i].unmarshal(listClazzConstructor!!.newInstance()))
-                                }
-                            }
-                            valueToSet = listOfClazzInstances
                         } else {
-                            var listOfClazzInstances = arrayListOf<Any>()
-                            for (i in 0..(array.size - 1)) {
-                                when (listClazz!!) {
-                                    Int::class -> {
-                                        val intVal = array[i].int ?: return null
-                                        listOfClazzInstances.add(intVal)
-                                    }
-                                    Long::class -> {
-                                        val longVal = array[i].long ?: return null
-                                        listOfClazzInstances.add(longVal)
-                                    }
-                                    Double::class -> {
-                                        val doubleVal = array[i].double ?: return null
-                                        listOfClazzInstances.add(doubleVal)
-                                    }
-                                    String::class -> {
-                                        val stringVal = array[i].string ?: return null
-                                        listOfClazzInstances.add(stringVal)
-                                    }
-                                    Boolean::class -> {
-                                        val booleanVal = array[i].boolean ?: return null
-                                        listOfClazzInstances.add(booleanVal)
-                                    }
-                                    else -> {
-                                        val obj = array[i].unmarshal(listClazzConstructor!!.newInstance()) ?: return null
-                                        listOfClazzInstances.add(obj)
-                                    }
+                            var listClazz: KClass<Any>? = null
+                            var optional = false
+                            prop.annotations.forEach {
+                                if (it is ListClass) {
+                                    listClazz = it.clazz as? KClass<Any>
+                                    optional = it.optional
                                 }
                             }
-                            valueToSet = listOfClazzInstances
+                            if (listClazz == null) throw JSONUnmarshalException("List properties must specify their class generic in @ListClass.")
+
+                            if (optional) {
+                                val listOfClazzInstances = mutableListOf<Any?>()
+
+                                for (i in 0..(array.size - 1)) {
+                                    when (listClazz!!) {
+                                        Int::class -> listOfClazzInstances.add(array[i].int)
+                                        Long::class -> listOfClazzInstances.add(array[i].long)
+                                        Double::class -> listOfClazzInstances.add(array[i].double)
+                                        String::class -> listOfClazzInstances.add(array[i].string)
+                                        Boolean::class -> listOfClazzInstances.add(array[i].boolean)
+                                        else -> listOfClazzInstances.add(array[i].unmarshal(listClazz as KClass<Any>))
+                                    }
+                                }
+                                valueToSet = listOfClazzInstances
+                            } else {
+                                val listOfClazzInstances = arrayListOf<Any>()
+                                for (i in 0..(array.size - 1)) {
+                                    when (listClazz!!) {
+                                        Int::class -> listOfClazzInstances.add(array[i].int ?: return null)
+                                        Long::class -> listOfClazzInstances.add(array[i].long ?: return null)
+                                        Double::class -> listOfClazzInstances.add(array[i].double ?: return null)
+                                        String::class -> listOfClazzInstances.add(array[i].string ?: return null)
+                                        Boolean::class -> listOfClazzInstances.add(array[i].boolean ?: return null)
+                                        else -> listOfClazzInstances.add(array[i].unmarshal(listClazz as KClass<Any>) ?: return null)
+                                    }
+                                }
+                                valueToSet = listOfClazzInstances
+                            }
                         }
                     }
                 }
             }
-            try {
-                setter.invoke(instance, valueToSet)
-                if (!isNullable)
-                    setProperties++
-            } catch (e: Exception) {
-                // if there was an exception setting it, we assume it didn't succeed
-                e.printStackTrace()
-                return null
-            }
+            constructorArgs.put(prop, valueToSet)
+            if (!isNullable)
+                setProperties++
         }
         if (setProperties != totalProperties) return null
-        return instance
+        return constructorArgs
     }
 
     override fun toString(): String {
