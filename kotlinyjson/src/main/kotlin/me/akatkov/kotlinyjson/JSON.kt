@@ -10,6 +10,23 @@ import kotlin.reflect.*
 import kotlin.reflect.jvm.javaGetter
 import kotlin.reflect.jvm.javaSetter
 
+@Target(AnnotationTarget.CLASS)
+annotation class SnakeCase
+
+@Target(AnnotationTarget.CLASS)
+annotation class CamelCase
+
+@Target(AnnotationTarget.PROPERTY)
+annotation class Ignore
+
+@Target(AnnotationTarget.PROPERTY)
+annotation class JSONKey(val key: String)
+
+@Target(AnnotationTarget.PROPERTY)
+annotation class ListClass(val clazz: KClass<*>, val optional: Boolean = false)
+
+class JSONUnmarshalException(val msg: String): Exception(msg)
+
 class JSON {
     private var jsonObject: JSONObject?
     private var jsonArray: JSONArray?
@@ -268,6 +285,13 @@ class JSON {
                 else
                     continue
             } else {
+                clazz.annotations.forEach {
+                    if (it is SnakeCase) {
+                        keyName = prop.name.toSnakeCase()
+                    } else if (it is CamelCase) {
+                        keyName = prop.name.toCamelCase()
+                    }
+                }
                 prop.annotations.forEach {
                     if (it is JSONKey) {
                         keyName = it.key
@@ -394,18 +418,21 @@ class JSON {
     override fun toString(): String {
         return rawString() ?: ""
     }
+
+    private fun String.toSnakeCase(): String {
+        // paramName -> param_name
+        return this.replace(Regex("[A-Z]"), {result ->
+            "_" + result.value.toLowerCase()
+        })
+    }
+
+    private fun String.toCamelCase(): String {
+        // paramName -> ParamName
+        if (this.isEmpty()) return this
+        return this.substring(0, 1).toUpperCase() + this.substring(1)
+    }
+
 }
-
-@Target(AnnotationTarget.PROPERTY)
-annotation class Ignore
-
-@Target(AnnotationTarget.PROPERTY)
-annotation class JSONKey(val key: String)
-
-@Target(AnnotationTarget.PROPERTY)
-annotation class ListClass(val clazz: KClass<*>, val optional: Boolean = false)
-
-class JSONUnmarshalException(val msg: String): Exception(msg)
 
 private fun inputStreamToByteArray(inputStream: InputStream, closeWhenDone: Boolean = false): ByteArray? {
     try {

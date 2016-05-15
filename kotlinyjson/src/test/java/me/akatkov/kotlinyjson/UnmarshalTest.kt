@@ -159,6 +159,32 @@ class UnmarshalTest : junit.framework.TestCase() {
         assertEquals("Bravo", user.names[2])
     }
 
+    @SnakeCase
+    data class SnakeUser(var userId: Long = 0, var userName: String = "")
+
+    fun testSnakeMutableSuccessUnmarshal() {
+        val json = JSON("{\"user_name\":\"Johnny\",\"user_id\":1234567}")
+        val user = json.unmarshal(SnakeUser())
+
+        assertNotNull(user)
+        user!!
+        assertEquals(1234567, user.userId)
+        assertEquals("Johnny", user.userName)
+    }
+
+    @CamelCase
+    data class CamelUser(var userId: Long = 0, var userName: String = "")
+
+    fun testCamelMutableSuccessUnmarshal() {
+        val json = JSON("{\"UserName\":\"Johnny\",\"UserId\":1234567}")
+        val user = json.unmarshal(CamelUser())
+
+        assertNotNull(user)
+        user!!
+        assertEquals(1234567, user.userId)
+        assertEquals("Johnny", user.userName)
+    }
+
     //    data class NoDefaultsUser(var id: Long, var name: String)
     //
     //    fun testSimpleNoDefaultsSuccessUnmarshal() {
