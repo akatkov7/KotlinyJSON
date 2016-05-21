@@ -86,6 +86,13 @@ class UnmarshalTest : junit.framework.TestCase() {
         assertEquals("Suzy", user.names[1].last)
     }
 
+    fun testInvalidListFailureUnmarshal() {
+        val json = JSON("{\"names\":[{\"first\":\"Johnny\",\"last\":\"Bravo\"},null,{\"first\":\"Little\",\"last\":\"Suzy\"}],\"id\":1234567}")
+        val user = json.unmarshal(ListCompositeUser::class)
+
+        assertNull(user)
+    }
+
     data class NullableUser(var id: Long = 0, var name: String? = null)
 
     fun testSimpleNullableMissingSuccessUnmarshal() {

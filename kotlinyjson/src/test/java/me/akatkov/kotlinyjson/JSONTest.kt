@@ -16,9 +16,6 @@ class JSONTest : junit.framework.TestCase() {
     }
 
     fun testStacking() {
-        val testJSON = JSONObject("{\"array\": [[\"a\"], [\"b\"]]}")
-        println(testJSON.getJSONArray("array").getJSONArray(0).getString(0))
-
         val jsonString = "{\"foo\":[{\"id\": 0}, {\"id\": 1}], \"bar\":{\"baz\": 2}}"
         val json = JSON(jsonString)
 

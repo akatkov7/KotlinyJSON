@@ -497,33 +497,39 @@ class JSON {
                             }
                             if (listClazz == null) throw JSONUnmarshalException("List properties must specify their class generic in @ListClass.")
 
-                            if (optional) {
-                                val listOfClazzInstances = mutableListOf<Any?>()
+                            fun getListOfClazzInstances(listClazz: KClass<Any>, optional: Boolean): List<Any?>? {
+                                if (optional) {
+                                    val listOfClazzInstances = mutableListOf<Any?>()
 
-                                for (i in 0..(array.size - 1)) {
-                                    when (listClazz!!) {
-                                        Int::class -> listOfClazzInstances.add(array[i].int)
-                                        Long::class -> listOfClazzInstances.add(array[i].long)
-                                        Double::class -> listOfClazzInstances.add(array[i].double)
-                                        String::class -> listOfClazzInstances.add(array[i].string)
-                                        Boolean::class -> listOfClazzInstances.add(array[i].boolean)
-                                        else -> listOfClazzInstances.add(array[i].unmarshal(listClazz as KClass<Any>))
+                                    for (i in 0..(array.size - 1)) {
+                                        when (listClazz) {
+                                            Int::class -> listOfClazzInstances.add(array[i].int)
+                                            Long::class -> listOfClazzInstances.add(array[i].long)
+                                            Double::class -> listOfClazzInstances.add(array[i].double)
+                                            String::class -> listOfClazzInstances.add(array[i].string)
+                                            Boolean::class -> listOfClazzInstances.add(array[i].boolean)
+                                            else -> listOfClazzInstances.add(array[i].unmarshal(listClazz))
+                                        }
                                     }
-                                }
-                                valueToSet = listOfClazzInstances
-                            } else {
-                                val listOfClazzInstances = arrayListOf<Any>()
-                                for (i in 0..(array.size - 1)) {
-                                    when (listClazz!!) {
-                                        Int::class -> listOfClazzInstances.add(array[i].int ?: return null)
-                                        Long::class -> listOfClazzInstances.add(array[i].long ?: return null)
-                                        Double::class -> listOfClazzInstances.add(array[i].double ?: return null)
-                                        String::class -> listOfClazzInstances.add(array[i].string ?: return null)
-                                        Boolean::class -> listOfClazzInstances.add(array[i].boolean ?: return null)
-                                        else -> listOfClazzInstances.add(array[i].unmarshal(listClazz as KClass<Any>) ?: return null)
+                                    return listOfClazzInstances
+                                } else {
+                                    val listOfClazzInstances = mutableListOf<Any>()
+                                    for (i in 0..(array.size - 1)) {
+                                        when (listClazz) {
+                                            Int::class -> listOfClazzInstances.add(array[i].int ?: return null)
+                                            Long::class -> listOfClazzInstances.add(array[i].long ?: return null)
+                                            Double::class -> listOfClazzInstances.add(array[i].double ?: return null)
+                                            String::class -> listOfClazzInstances.add(array[i].string ?: return null)
+                                            Boolean::class -> listOfClazzInstances.add(array[i].boolean ?: return null)
+                                            else -> listOfClazzInstances.add(array[i].unmarshal(listClazz) ?: return null)
+                                        }
                                     }
+                                    return listOfClazzInstances
                                 }
-                                valueToSet = listOfClazzInstances
+                            }
+                            valueToSet = getListOfClazzInstances(listClazz!!, optional)
+                            if (valueToSet == null && !isNullable) {
+                                return null
                             }
                         }
                     }
