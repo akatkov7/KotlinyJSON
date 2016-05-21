@@ -616,35 +616,39 @@ class JSON {
                         }
                         if (listClazz == null) throw JSONMarshalException("List properties must specify their class generic in @ListClass.")
 
-                        if (optional) {
-                            val values = mutableListOf<Any?>()
-                            value.forEach {
-                                if (it != null) {
-                                    when (it) {
-                                        is Int?, is Long?, is Double?, is Boolean?, is String? -> values.add(it)
+                        fun getList(listClazz: KClass<Any>, optional: Boolean): List<Any?> {
+                            if (optional) {
+                                val values = mutableListOf<Any?>()
+                                value.forEach {
+                                    if (it != null) {
+                                        when (it) {
+                                            is Int?, is Long?, is Double?, is Boolean?, is String? -> values.add(it)
+                                            else -> values.add(marshal(it))
+                                        }
+                                    } else {
+                                        if (!omitNull) {
+                                            if (marshalNullStrategy == MarshalNullStrategy.NULL_STRING) {
+                                                // TODO: figure out how to handle this
+                                            }
+                                            // we just put null because we can't put "null" in all cases
+                                            values.add(null)
+                                        }
+                                    }
+                                }
+                                return values
+                            } else {
+                                val values = mutableListOf<Any>()
+                                value.forEach {
+                                    when (it!!) {
+                                        is Int, is Long, is Double, is Boolean, is String -> values.add(it)
                                         else -> values.add(marshal(it))
                                     }
-                                } else {
-                                    if (!omitNull) {
-                                        if (marshalNullStrategy == MarshalNullStrategy.NULL_STRING) {
-                                            // TODO: figure out how to handle this
-                                        }
-                                        // we just put null because we can't put "null"
-                                        values.add(null)
-                                    }
                                 }
+                                return values
                             }
-                            instanceJSON[keyName] = values
-                        } else {
-                            val values = mutableListOf<Any>()
-                            value.forEach {
-                                when (it!!) {
-                                    is Int, is Long, is Double, is Boolean, is String -> values.add(it)
-                                    else -> values.add(marshal(it))
-                                }
-                            }
-                            instanceJSON[keyName] = values
                         }
+                        instanceJSON[keyName] = getList(listClazz!!, optional)
+
                     } else {
                         if (value != null) {
                             instanceJSON[keyName] = marshal(value)
