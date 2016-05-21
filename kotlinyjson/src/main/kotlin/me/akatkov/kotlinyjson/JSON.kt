@@ -9,21 +9,62 @@ import kotlin.reflect.*
 import kotlin.reflect.jvm.javaField
 
 @Target(AnnotationTarget.CLASS)
+/**
+ * This annotation on a class will convert properties from camelCase to snake_case when
+ * unmarshaling/marshaling from/to JSON e.g. propertyName -> property_name
+ */
 annotation class SnakeCase
 
 @Target(AnnotationTarget.CLASS)
+/**
+ * This annotation on a class will convert properties from camelCase to CamelCase when
+ * unmarshaling/marshaling from/to JSON e.g. propertyName -> PropertyName
+ */
 annotation class CamelCase
 
 @Target(AnnotationTarget.PROPERTY)
+/**
+ * This annotation on a property will mean that the unmarshal/marshaling process should ignore
+ * this property.
+ */
 annotation class Ignore
 
 @Target(AnnotationTarget.PROPERTY)
+/**
+ * This annotation on a property will mean that the provided key will be used to fetch/store the
+ * property in/from the JSON.
+ *
+ * @param key the JSON key
+ */
 annotation class JSONKey(val key: String)
 
 @Target(AnnotationTarget.PROPERTY)
+/**
+ * This annotation on a property will mean that this property is a List which contains the class
+ * provided. This is necessary to successfully marshal/unmarshal the list.
+ *
+ * @param clazz the class inside the list
+ * @param optional whether the objects can be null
+ */
 annotation class ListClass(val clazz: KClass<*>, val optional: Boolean = false)
 
+/**
+ * This exception will be thrown when there is an issue with unmarshaling that is an user error.
+ * Otherwise, unmarshaling will return null if it simply fails.
+ */
 class JSONUnmarshalException(val msg: String): Exception(msg)
+
+enum class MarshalNullStrategy {
+    NULL, NULL_STRING, OMIT
+}
+
+@Target(AnnotationTarget.CLASS, AnnotationTarget.PROPERTY)
+annotation class MarshalNull(val strategy: MarshalNullStrategy = MarshalNullStrategy.NULL)
+
+/**
+ * This exception will be thrown when there is an issue with marshaling that is an user error.
+ */
+class JSONMarshalException(val msg: String): Exception(msg)
 
 class JSON {
     private var jsonObject: JSONObject?
@@ -41,6 +82,8 @@ class JSON {
         name = null
         index = null
     }
+
+    constructor() : this("{}")
 
     constructor(string: String) : this(string.toByteArray())
 
@@ -96,6 +139,35 @@ class JSON {
         return JSON(this, index)
     }
 
+    operator fun <V> set(key: String, value: V) {
+        // setting a list can be a list of primitives or a list of JSON
+        if (value is List<*>) {
+            val sample = value.getOrNull(0)
+            if (sample == null) {
+                jsonObject?.put(key, value)
+            } else {
+                when (sample) {
+                    is JSON -> {
+                        jsonObject?.put(key, JSONArray(value.map { (it as JSON).jsonObject }))
+                    }
+                    else -> {
+                        jsonObject?.put(key, JSONArray(value))
+                    }
+                }
+            }
+        } else if (value is JSON) {
+            if (value.getJSONObject() != null) {
+                jsonObject?.put(key, value.getJSONObject())
+            } else if (value.getJSONArray() != null) {
+                jsonObject?.put(key, value.getJSONArray())
+            } else {
+                throw RuntimeException("Error in set")
+            }
+        } else {
+            jsonObject?.put(key, value)
+        }
+    }
+
     private fun <T : Any> getValue(fromParentObject: (JSONObject, String) -> T?, fromParentArray: (JSONArray, Int) -> T?): T? {
         try {
             if (name is String) {
@@ -115,7 +187,7 @@ class JSON {
         return null
     }
 
-    private fun getJSONObject(): JSONObject? {
+    fun getJSONObject(): JSONObject? {
         if (jsonObject !is JSONObject) {
             jsonObject = getValue({ o, n -> o.getJSONObject(n) }, { a, i -> a.getJSONObject(i) })
         }
@@ -123,12 +195,16 @@ class JSON {
         return jsonObject
     }
 
-    private fun getJSONArray(): JSONArray? {
+    fun getJSONArray(): JSONArray? {
         if (jsonArray !is JSONArray) {
             jsonArray = getValue({ o, n -> o.getJSONArray(n) }, { a, i -> a.getJSONArray(i) })
         }
 
         return jsonArray
+    }
+
+    fun isEmpty(): Boolean {
+        return (map?.isEmpty() ?: true) || (list?.isEmpty() ?: true)
     }
 
     fun isNullJSON(): Boolean {
@@ -289,30 +365,25 @@ class JSON {
         val constructorArgs: MutableMap<KProperty1<T, *>, Any?> = mutableMapOf()
         for (prop in properties) {
             var keyName = prop.name
-            val mutProp = prop as? KMutableProperty1<*, *>
-            if (mutProp == null) {
-                var ignored = false
-                prop.annotations.forEach {
-                    if (it is Ignore) {
-                        totalProperties--
-                        ignored = true
-                    }
-                }
-                if (ignored) continue
-            } else {
-                clazz.annotations.forEach {
-                    if (it is SnakeCase) {
-                        keyName = prop.name.toSnakeCase()
-                    } else if (it is CamelCase) {
-                        keyName = prop.name.toCamelCase()
-                    }
-                }
-                prop.annotations.forEach {
-                    if (it is JSONKey) {
-                        keyName = it.key
-                    }
+            clazz.annotations.forEach {
+                if (it is SnakeCase) {
+                    keyName = prop.name.toSnakeCase()
+                } else if (it is CamelCase) {
+                    keyName = prop.name.toCamelCase()
                 }
             }
+            var ignored = false
+            prop.annotations.forEach {
+                if (it is Ignore) {
+                    totalProperties--
+                    ignored = true
+                }
+                if (it is JSONKey) {
+                    keyName = it.key
+                }
+            }
+            if (ignored) continue
+
             val isNullable = prop.returnType.isMarkedNullable
             if (isNullable) {
                 totalProperties--
@@ -401,6 +472,123 @@ class JSON {
         }
         if (setProperties != totalProperties) return null
         return constructorArgs
+    }
+
+    fun <T : Any> marshal(instance: T): JSON {
+        val clazz = instance.javaClass.kotlin
+        val properties = clazz.declaredMemberProperties
+        val instanceJSON = JSON()
+        for (prop in properties) {
+            var keyName = prop.name
+            var marshalNullStrategy = MarshalNullStrategy.NULL
+            var nullValue: Any? = null
+            var omitNull = false
+            clazz.annotations.forEach {
+                if (it is SnakeCase) {
+                    keyName = prop.name.toSnakeCase()
+                }
+                if (it is CamelCase) {
+                    keyName = prop.name.toCamelCase()
+                }
+                if (it is MarshalNull) {
+                    marshalNullStrategy = it.strategy
+                    when (it.strategy) {
+                        MarshalNullStrategy.NULL -> nullValue = null
+                        MarshalNullStrategy.NULL_STRING -> nullValue = "null"
+                        MarshalNullStrategy.OMIT -> omitNull = true
+                    }
+                }
+            }
+            var ignored = false
+            prop.annotations.forEach {
+                if (it is Ignore) {
+                    ignored = true
+                }
+                if (it is JSONKey) {
+                    keyName = it.key
+                }
+                if (it is MarshalNull) {
+                    // reset for this property in case there is a different strategy for the class
+                    omitNull = false
+                    marshalNullStrategy = it.strategy
+                    when (it.strategy) {
+                        MarshalNullStrategy.NULL -> nullValue = null
+                        MarshalNullStrategy.NULL_STRING -> nullValue = "null"
+                        MarshalNullStrategy.OMIT -> omitNull = true
+                    }
+                }
+            }
+            if (ignored) continue
+
+            val value = prop.get(instance)
+            when(prop.returnType) {
+                Int::class.defaultType, Long::class.defaultType, Double::class.defaultType, String::class.defaultType, Boolean::class.defaultType -> {
+                    instanceJSON[keyName] = value
+                }
+                optionalMap["Int?"]!!, optionalMap["Long?"]!!, optionalMap["Double?"]!!, optionalMap["String?"]!!, optionalMap["Boolean?"]!! -> {
+                    if (value != null) {
+                        instanceJSON[keyName] = value
+                    } else {
+                        if (!omitNull) {
+                            instanceJSON[keyName] = nullValue
+                        }
+                    }
+                }
+                else -> {
+                    if (value is List<*>) {
+                        // the value is a List
+                        var listClazz: KClass<Any>? = null
+                        var optional = false
+                        prop.annotations.forEach {
+                            if (it is ListClass) {
+                                listClazz = it.clazz as? KClass<Any>
+                                optional = it.optional
+                            }
+                        }
+                        if (listClazz == null) throw JSONMarshalException("List properties must specify their class generic in @ListClass.")
+
+                        if (optional) {
+                            val values = mutableListOf<Any?>()
+                            value.forEach {
+                                if (it != null) {
+                                    when (it) {
+                                        is Int?, is Long?, is Double?, is Boolean?, is String? -> values.add(it)
+                                        else -> values.add(marshal(it))
+                                    }
+                                } else {
+                                    if (!omitNull) {
+                                        if (marshalNullStrategy == MarshalNullStrategy.NULL_STRING) {
+                                            // TODO: figure out how to handle this
+                                        }
+                                        // we just put null because we can't put "null"
+                                        values.add(null)
+                                    }
+                                }
+                            }
+                            instanceJSON[keyName] = values
+                        } else {
+                            val values = mutableListOf<Any>()
+                            value.forEach {
+                                when (it!!) {
+                                    is Int, is Long, is Double, is Boolean, is String -> values.add(it)
+                                    else -> values.add(marshal(it))
+                                }
+                            }
+                            instanceJSON[keyName] = values
+                        }
+                    } else {
+                        if (value != null) {
+                            instanceJSON[keyName] = marshal(value)
+                        } else {
+                            if (!omitNull) {
+                                instanceJSON[keyName] = nullValue
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return instanceJSON
     }
 
     override fun toString(): String {

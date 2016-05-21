@@ -1,4 +1,4 @@
-import me.akatkov.kotlinyjson.*
+package me.akatkov.kotlinyjson
 
 class UnmarshalTest : junit.framework.TestCase() {
 
@@ -70,7 +70,7 @@ class UnmarshalTest : junit.framework.TestCase() {
         assertEquals("Bravo", user.name.last)
     }
 
-    data class ListCompositeUser(var id: Long = 0, @ListClass(Name::class) var names: MutableList<Name> = arrayListOf())
+    data class ListCompositeUser(var id: Long = 0, @ListClass(Name::class) var names: MutableList<Name> = mutableListOf())
 
     fun testSimpleListRecursiveUnmarshal() {
         val json = JSON("{\"names\":[{\"first\":\"Johnny\",\"last\":\"Bravo\"},{\"first\":\"Little\",\"last\":\"Suzy\"}],\"id\":1234567}")
@@ -133,7 +133,7 @@ class UnmarshalTest : junit.framework.TestCase() {
     }
 
     data class NullableListRecursiveUser(var id: Long = 0,
-                                         @ListClass(String::class, optional = true) var names: List<String?> = arrayListOf())
+                                         @ListClass(String::class, optional = true) var names: List<String?> = listOf())
 
     fun testSimpleNullableListRecursiveSuccessUnmarshal() {
         val json = JSON("{\"names\":[\"Johnny\", null, \"Bravo\"],\"id\":1234567}")
@@ -196,4 +196,19 @@ class UnmarshalTest : junit.framework.TestCase() {
         assertEquals(1234567, user.id)
         assertEquals("Johnny", user.name)
     }
+
+    data class ImmutableIgnoreUser(val id: Long, @Ignore val name: String) {
+        constructor(id: Long): this(id, "Johnny")
+    }
+
+    fun testSimpleImmutableIgnoreSuccessUnmarshal() {
+        val json = JSON("{\"name\":\"Johnny\",\"id\":1234567}")
+        val user = json.unmarshal(ImmutableIgnoreUser::class)
+
+        assertNotNull(user)
+        user!!
+        assertEquals(1234567, user.id)
+        assertEquals("Johnny", user.name)
+    }
+
 }
