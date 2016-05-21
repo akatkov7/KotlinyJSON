@@ -151,5 +151,4 @@ class MarshalTest : junit.framework.TestCase() {
         assertEquals(1234567, json["UserId"].int)
         assertEquals("Johnny", json["UserName"].string)
     }
-
 }

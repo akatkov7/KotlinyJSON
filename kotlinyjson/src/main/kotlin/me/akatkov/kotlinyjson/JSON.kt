@@ -142,29 +142,92 @@ class JSON {
     operator fun <V> set(key: String, value: V) {
         // setting a list can be a list of primitives or a list of JSON
         if (value is List<*>) {
-            val sample = value.getOrNull(0)
-            if (sample == null) {
-                jsonObject?.put(key, value)
+            if (value.isEmpty()) {
+                getJSONObject()?.put(key, JSONArray(value))
+                return
+            }
+            val hasNulls = value.size == value.filterNotNull().size
+            // the list has nullable objects
+            if (hasNulls) {
+                var sample: Any? = null
+                value.forEach {
+                    if (it != null) {
+                        sample = it
+                        return@forEach
+                    }
+                }
+                // all nulls
+                if (sample == null) {
+                    getJSONObject()?.put(key, JSONArray(value))
+                } else {
+                    when (sample) {
+                        is Int, is Long, is Double, is Boolean, is String -> getJSONObject()?.put(key, JSONArray(value))
+                        is JSON -> getJSONObject()?.put(key, JSONArray(value.map { (it as JSON).getJSONObject() ?: it.getJSONArray() }))
+                        else -> getJSONObject()?.put(key, JSONArray(value))
+                    }
+                }
             } else {
+                val sample = value[0]
                 when (sample) {
-                    is JSON -> {
-                        jsonObject?.put(key, JSONArray(value.map { (it as JSON).jsonObject }))
-                    }
-                    else -> {
-                        jsonObject?.put(key, JSONArray(value))
-                    }
+                    is Int, is Long, is Double, is Boolean, is String -> getJSONObject()?.put(key, JSONArray(value))
+                    is JSON -> getJSONObject()?.put(key, JSONArray(value.map { (it as JSON).getJSONObject() ?: it.getJSONArray() }))
+                    else -> getJSONObject()?.put(key, JSONArray(value))
                 }
             }
         } else if (value is JSON) {
             if (value.getJSONObject() != null) {
-                jsonObject?.put(key, value.getJSONObject())
+                getJSONObject()?.put(key, value.getJSONObject())
             } else if (value.getJSONArray() != null) {
-                jsonObject?.put(key, value.getJSONArray())
-            } else {
-                throw RuntimeException("Error in set")
+                getJSONObject()?.put(key, value.getJSONArray())
             }
         } else {
-            jsonObject?.put(key, value)
+            getJSONObject()?.put(key, value)
+        }
+    }
+
+    operator fun <V> set(index: Int, value: V) {
+        // setting a list can be a list of primitives or a list of JSON
+        if (value is List<*>) {
+            if (value.isEmpty()) {
+                getJSONArray()?.put(index, JSONArray(value))
+                return
+            }
+            val hasNulls = value.size == value.filterNotNull().size
+            // the list has nullable objects
+            if (hasNulls) {
+                var sample: Any? = null
+                value.forEach {
+                    if (it != null) {
+                        sample = it
+                        return@forEach
+                    }
+                }
+                // all nulls
+                if (sample == null) {
+                    getJSONArray()?.put(index, JSONArray(value))
+                } else {
+                    when (sample) {
+                        is Int, is Long, is Double, is Boolean, is String -> getJSONArray()?.put(index, JSONArray(value))
+                        is JSON -> getJSONArray()?.put(index, JSONArray(value.map { (it as JSON).getJSONObject() ?: it.getJSONArray() }))
+                        else -> getJSONArray()?.put(index, JSONArray(value))
+                    }
+                }
+            } else {
+                val sample = value[0]
+                when (sample) {
+                    is Int, is Long, is Double, is Boolean, is String -> getJSONArray()?.put(index, JSONArray(value))
+                    is JSON -> getJSONArray()?.put(index, JSONArray(value.map { (it as JSON).getJSONObject() ?: it.getJSONArray() }))
+                    else -> getJSONArray()?.put(index, JSONArray(value))
+                }
+            }
+        } else if (value is JSON) {
+            if (value.getJSONObject() != null) {
+                getJSONArray()?.put(index, value.getJSONObject())
+            } else if (value.getJSONArray() != null) {
+                getJSONArray()?.put(index, value.getJSONArray())
+            }
+        } else {
+            getJSONArray()?.put(index, value)
         }
     }
 
