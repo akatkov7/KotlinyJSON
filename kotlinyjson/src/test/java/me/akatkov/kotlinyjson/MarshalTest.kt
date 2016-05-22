@@ -151,4 +151,26 @@ class MarshalTest : junit.framework.TestCase() {
         assertEquals(1234567, json["UserId"].int)
         assertEquals("Johnny", json["UserName"].string)
     }
+
+    data class LotsOfNamesUser(val id: Long, @ListClass(Name::class) val names: List<List<Name>>)
+
+    fun testNestedListsSuccessMarshal() {
+        val user = LotsOfNamesUser(1234567, listOf(listOf(Name("Johnny", "Bravo"))))
+        val json = JSON().marshal(user)
+
+        assertEquals(1234567, json["id"].int)
+        assertEquals("Johnny", json["names"][0][0]["first"].string)
+        assertEquals("Bravo", json["names"][0][0]["last"].string)
+    }
+
+    data class LotsOfNamesMaybeUser(val id: Long, @ListClass(Name::class) val names: List<List<Name>?>)
+
+    fun testNullableNestedListsSuccessMarshal() {
+        val user = LotsOfNamesMaybeUser(1234567, listOf(listOf(Name("Johnny", "Bravo"))))
+        val json = JSON().marshal(user)
+
+        assertEquals(1234567, user.id)
+        assertEquals("Johnny", json["names"][0][0]["first"].string)
+        assertEquals("Bravo", json["names"][0][0]["last"].string)
+    }
 }

@@ -451,10 +451,11 @@ class JSON {
             if (isNullable) {
                 totalProperties--
             }
+
             // since we successfully casted to a mutable property, the setter should exist
             var valueToSet: Any? = null
             when(prop.returnType) {
-            // if the property isn't nullable, then we can return because this unmarshal won't succeed
+                // if the property isn't nullable, then we can return because this unmarshal won't succeed
                 Int::class.defaultType -> valueToSet = this[keyName].int ?: return null
                 optionalMap["Int?"]!! -> valueToSet = this[keyName].int
                 Long::class.defaultType -> valueToSet = this[keyName].long ?: return null
@@ -466,6 +467,7 @@ class JSON {
                 Boolean::class.defaultType -> valueToSet = this[keyName].boolean ?: return null
                 optionalMap["Boolean?"]!! -> valueToSet = this[keyName].boolean
                 else -> {
+
                     if (this[keyName].isNullJSON()) {
                         if (isNullable) {
                             valueToSet = null
@@ -497,7 +499,7 @@ class JSON {
                             }
                             if (listClazz == null) throw JSONUnmarshalException("List properties must specify their class generic in @ListClass.")
 
-                            fun getListOfClazzInstances(listClazz: KClass<Any>, optional: Boolean): List<Any?>? {
+                            fun getListOfClazzInstances(array: List<JSON>, listClazz: KClass<Any>, optional: Boolean): List<Any?>? {
                                 if (optional) {
                                     val listOfClazzInstances = mutableListOf<Any?>()
 
@@ -527,7 +529,7 @@ class JSON {
                                     return listOfClazzInstances
                                 }
                             }
-                            valueToSet = getListOfClazzInstances(listClazz!!, optional)
+                            valueToSet = getListOfClazzInstances(array, listClazz!!, optional)
                             if (valueToSet == null && !isNullable) {
                                 return null
                             }
@@ -616,13 +618,14 @@ class JSON {
                         }
                         if (listClazz == null) throw JSONMarshalException("List properties must specify their class generic in @ListClass.")
 
-                        fun getList(listClazz: KClass<Any>, optional: Boolean): List<Any?> {
+                        fun getList(value: List<*>, listClazz: KClass<Any>, optional: Boolean): List<Any?> {
                             if (optional) {
                                 val values = mutableListOf<Any?>()
                                 value.forEach {
                                     if (it != null) {
                                         when (it) {
                                             is Int?, is Long?, is Double?, is Boolean?, is String? -> values.add(it)
+                                            is List<*>? -> values.add(getList(it, listClazz, optional))
                                             else -> values.add(marshal(it))
                                         }
                                     } else {
@@ -641,13 +644,14 @@ class JSON {
                                 value.forEach {
                                     when (it!!) {
                                         is Int, is Long, is Double, is Boolean, is String -> values.add(it)
+                                        is List<*> -> values.add(getList(it as List<*>, listClazz, optional))
                                         else -> values.add(marshal(it))
                                     }
                                 }
                                 return values
                             }
                         }
-                        instanceJSON[keyName] = getList(listClazz!!, optional)
+                        instanceJSON[keyName] = getList(value, listClazz!!, optional)
 
                     } else {
                         if (value != null) {
