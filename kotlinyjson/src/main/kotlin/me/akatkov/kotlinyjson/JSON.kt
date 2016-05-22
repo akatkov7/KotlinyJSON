@@ -248,7 +248,7 @@ class JSON {
         return null
     }
 
-    fun getJSONObject(): JSONObject? {
+    private fun getJSONObject(): JSONObject? {
         if (jsonObject !is JSONObject) {
             jsonObject = getValue({ o, n -> o.getJSONObject(n) }, { a, i -> a.getJSONObject(i) })
         }
@@ -256,7 +256,7 @@ class JSON {
         return jsonObject
     }
 
-    fun getJSONArray(): JSONArray? {
+    private fun getJSONArray(): JSONArray? {
         if (jsonArray !is JSONArray) {
             jsonArray = getValue({ o, n -> o.getJSONArray(n) }, { a, i -> a.getJSONArray(i) })
         }
@@ -465,7 +465,6 @@ class JSON {
                 Boolean::class.defaultType -> valueToSet = this[keyName].boolean ?: return null
                 optionalMap["Boolean?"]!! -> valueToSet = this[keyName].boolean
                 else -> {
-
                     if (this[keyName].isNullJSON()) {
                         if (isNullable) {
                             valueToSet = null
@@ -645,7 +644,7 @@ class JSON {
                                     } else {
                                         when (it) {
                                             is Int, is Long, is Double, is Boolean, is String -> values.add(it)
-                                            is List<*> -> values.add(getList(it as List<*>, listClazz, optional))
+                                            is List<*> -> values.add(getList(it, listClazz, optional))
                                             else -> values.add(marshal(it))
                                         }
                                     }
