@@ -140,49 +140,48 @@ class JSON {
     }
 
     operator fun <V> set(key: String, value: V) {
+        var valueToSet: Any? = value
+
+        fun getValueToSet(list: List<*>): Any? {
+            // empty list or all nulls
+            if (list.isEmpty() || list.filterNotNull().size == 0) {
+                return JSONArray(list)
+            }
+
+            val sample = list.first { it != null }
+            when (sample) {
+                is List<*> -> return JSONArray(list.map {
+                    val itList = it as? List<*>
+                    if (itList != null) {
+                        getValueToSet(itList)
+                    } else {
+                        null
+                    }
+                })
+                is JSON -> return JSONArray(list.map {
+                    val itJSON = it as? JSON
+                    if (itJSON != null) {
+                        itJSON.getJSONObject() ?: itJSON.getJSONArray()
+                    } else {
+                        null
+                    }
+                })
+                else -> return JSONArray(list)
+            }
+        }
+
         // setting a list can be a list of primitives or a list of JSON
         if (value is List<*>) {
-            if (value.isEmpty()) {
-                getJSONObject()?.put(key, JSONArray(value))
-                return
-            }
-            val hasNulls = value.size == value.filterNotNull().size
-            // the list has nullable objects
-            if (hasNulls) {
-                var sample: Any? = null
-                value.forEach {
-                    if (it != null) {
-                        sample = it
-                        return@forEach
-                    }
-                }
-                // all nulls
-                if (sample == null) {
-                    getJSONObject()?.put(key, JSONArray(value))
-                } else {
-                    when (sample) {
-                        is Int, is Long, is Double, is Boolean, is String -> getJSONObject()?.put(key, JSONArray(value))
-                        is JSON -> getJSONObject()?.put(key, JSONArray(value.map { (it as JSON).getJSONObject() ?: it.getJSONArray() }))
-                        else -> getJSONObject()?.put(key, JSONArray(value))
-                    }
-                }
-            } else {
-                val sample = value[0]
-                when (sample) {
-                    is Int, is Long, is Double, is Boolean, is String -> getJSONObject()?.put(key, JSONArray(value))
-                    is JSON -> getJSONObject()?.put(key, JSONArray(value.map { (it as JSON).getJSONObject() ?: it.getJSONArray() }))
-                    else -> getJSONObject()?.put(key, JSONArray(value))
-                }
-            }
+            valueToSet = getValueToSet(value)
         } else if (value is JSON) {
             if (value.getJSONObject() != null) {
-                getJSONObject()?.put(key, value.getJSONObject())
+                valueToSet = value.getJSONObject()
             } else if (value.getJSONArray() != null) {
-                getJSONObject()?.put(key, value.getJSONArray())
+                valueToSet = value.getJSONArray()
             }
-        } else {
-            getJSONObject()?.put(key, value)
         }
+
+        getJSONObject()?.put(key, valueToSet)
     }
 
     operator fun <V> set(index: Int, value: V) {
@@ -640,12 +639,16 @@ class JSON {
                                 }
                                 return values
                             } else {
-                                val values = mutableListOf<Any>()
+                                val values = mutableListOf<Any?>()
                                 value.forEach {
-                                    when (it!!) {
-                                        is Int, is Long, is Double, is Boolean, is String -> values.add(it)
-                                        is List<*> -> values.add(getList(it as List<*>, listClazz, optional))
-                                        else -> values.add(marshal(it))
+                                    if (it == null) {
+                                        values.add(null)
+                                    } else {
+                                        when (it) {
+                                            is Int, is Long, is Double, is Boolean, is String -> values.add(it)
+                                            is List<*> -> values.add(getList(it as List<*>, listClazz, optional))
+                                            else -> values.add(marshal(it))
+                                        }
                                     }
                                 }
                                 return values

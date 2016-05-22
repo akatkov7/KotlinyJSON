@@ -1,7 +1,5 @@
 package me.akatkov.kotlinyjson
 
-import org.json.JSONObject
-
 class JSONTest : junit.framework.TestCase() {
 
     // override keyword required to override the setUp method
@@ -22,5 +20,13 @@ class JSONTest : junit.framework.TestCase() {
         assertEquals(0, json["foo"][0]["id"].int)
         assertEquals(1, json["foo"][1]["id"].int)
         assertEquals(2, json["bar"]["baz"].int)
+    }
+
+    fun testSettingList() {
+        val jsonString = "{\"foo\": 1}"
+        val json = JSON(jsonString)
+        json["bar"] = JSON("[1, 2, 3]")
+
+        assertEquals(3, json["bar"].list?.size)
     }
 }

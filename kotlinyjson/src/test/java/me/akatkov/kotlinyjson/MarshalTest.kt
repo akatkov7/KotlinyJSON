@@ -166,11 +166,30 @@ class MarshalTest : junit.framework.TestCase() {
     data class LotsOfNamesMaybeUser(val id: Long, @ListClass(Name::class) val names: List<List<Name>?>)
 
     fun testNullableNestedListsSuccessMarshal() {
-        val user = LotsOfNamesMaybeUser(1234567, listOf(listOf(Name("Johnny", "Bravo"))))
+        val user = LotsOfNamesMaybeUser(1234567, listOf(listOf(Name("Johnny", "Bravo")), null))
         val json = JSON().marshal(user)
 
         assertEquals(1234567, user.id)
         assertEquals("Johnny", json["names"][0][0]["first"].string)
         assertEquals("Bravo", json["names"][0][0]["last"].string)
+
+        val uselessUser = LotsOfNamesMaybeUser(1234567, listOf(null, null))
+        val uselessJson = JSON().marshal(uselessUser)
+        assertEquals(1234567, user.id)
+        assertNull(uselessJson["names"][0].list)
+        assertNull(uselessJson["names"][1].list)
+    }
+
+    data class LotsOfNamesMaybeNamelessUser(val id: Long, @ListClass(me.akatkov.kotlinyjson.MarshalTest.Name::class) val names: List<List<Name?>?>)
+
+    fun testNestedListsWithNullableSuccessMarshal() {
+        val user = LotsOfNamesMaybeNamelessUser(1234567, listOf(listOf(Name("Johnny", "Bravo"), null), null))
+        val json = JSON().marshal(user)
+
+        assertEquals(1234567, user.id)
+        assertEquals("Johnny", json["names"][0][0]["first"].string)
+        assertEquals("Bravo", json["names"][0][0]["last"].string)
+        assertNull(json["names"][0][1].map)
+        assertNull(json["names"][1].list)
     }
 }
