@@ -234,14 +234,16 @@ class UnmarshalTest : junit.framework.TestCase() {
     data class LotsOfNamesMaybeUser(val id: Long, @ListClass(Name::class) val names: List<List<Name>?>)
 
     fun testNullableNestedListsSuccessUnmarshal() {
-        val json = JSON("{\"names\":[[{\"first\":\"Johnny\",\"last\":\"Bravo\"}]],\"id\":1234567}")
+        val json = JSON("{\"names\":[null, [{\"first\":\"Johnny\",\"last\":\"Bravo\"}], null],\"id\":1234567}")
         val user = json.unmarshal(LotsOfNamesMaybeUser::class)
 
         assertNotNull(user)
         user!!
         assertEquals(1234567, user.id)
-        assertEquals("Johnny", user.names[0]?.get(0)?.first)
-        assertEquals("Bravo", user.names[0]?.get(0)?.last)
+        assertNull(user.names[0])
+        assertEquals("Johnny", user.names[1]?.get(0)?.first)
+        assertEquals("Bravo", user.names[1]?.get(0)?.last)
+        assertNull(user.names[2])
     }
 
 }

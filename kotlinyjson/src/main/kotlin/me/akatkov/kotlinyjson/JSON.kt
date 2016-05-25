@@ -496,40 +496,99 @@ class JSON {
                             }
                             if (listClazz == null) throw JSONUnmarshalException("List properties must specify their class generic in @ListClass.")
 
-                            fun getListOfClazzInstances(array: List<JSON>, listClazz: KClass<Any>, optional: Boolean): List<Any?>? {
-                                if (optional) {
-                                    val listOfClazzInstances = mutableListOf<Any?>()
-
-                                    for (i in 0..(array.size - 1)) {
-                                        when (listClazz) {
-                                            Int::class -> listOfClazzInstances.add(array[i].int)
-                                            Long::class -> listOfClazzInstances.add(array[i].long)
-                                            Double::class -> listOfClazzInstances.add(array[i].double)
-                                            String::class -> listOfClazzInstances.add(array[i].string)
-                                            Boolean::class -> listOfClazzInstances.add(array[i].boolean)
-                                            else -> listOfClazzInstances.add(array[i].unmarshal(listClazz))
-                                        }
+                            val returnType = prop.returnType.toString()
+                            val isOptional = listOf(optional) + returnType.mapIndexed { i, ch ->
+                                if (ch == '>') {
+                                    if (i + 1 < returnType.length && returnType[i + 1] == '?') {
+                                        true
+                                    } else {
+                                        false
                                     }
-                                    return listOfClazzInstances
                                 } else {
-                                    val listOfClazzInstances = mutableListOf<Any>()
-                                    for (i in 0..(array.size - 1)) {
-                                        when (listClazz) {
-                                            Int::class -> listOfClazzInstances.add(array[i].int ?: return null)
-                                            Long::class -> listOfClazzInstances.add(array[i].long ?: return null)
-                                            Double::class -> listOfClazzInstances.add(array[i].double ?: return null)
-                                            String::class -> listOfClazzInstances.add(array[i].string ?: return null)
-                                            Boolean::class -> listOfClazzInstances.add(array[i].boolean ?: return null)
-                                            else -> listOfClazzInstances.add(array[i].unmarshal(listClazz) ?: return null)
+                                    null
+                                }
+                            }.filterNotNull()
+
+                            fun getListOfClazzInstances(array: List<JSON>, listClazz: KClass<Any>, isOptional: List<Boolean>, index: Int): List<Any?>? {
+                                // this means we are on the final inner list class
+                                if (index == 0) {
+                                    val instanceOptional = isOptional[index]
+                                    if (instanceOptional) {
+                                        val listOfClazzInstances = mutableListOf<Any?>()
+
+                                        for (i in 0..(array.size - 1)) {
+                                            when (listClazz) {
+                                                Int::class -> listOfClazzInstances.add(array[i].int)
+                                                Long::class -> listOfClazzInstances.add(array[i].long)
+                                                Double::class -> listOfClazzInstances.add(array[i].double)
+                                                String::class -> listOfClazzInstances.add(array[i].string)
+                                                Boolean::class -> listOfClazzInstances.add(array[i].boolean)
+                                                else -> listOfClazzInstances.add(array[i].unmarshal(listClazz))
+                                            }
                                         }
+                                        return listOfClazzInstances
+                                    } else {
+                                        val listOfClazzInstances = mutableListOf<Any>()
+                                        for (i in 0..(array.size - 1)) {
+                                            when (listClazz) {
+                                                Int::class -> listOfClazzInstances.add(array[i].int ?: throw JSONUnmarshalException("fail"))
+                                                Long::class -> listOfClazzInstances.add(array[i].long ?: throw JSONUnmarshalException("fail"))
+                                                Double::class -> listOfClazzInstances.add(array[i].double ?: throw JSONUnmarshalException("fail"))
+                                                String::class -> listOfClazzInstances.add(array[i].string ?: throw JSONUnmarshalException("fail"))
+                                                Boolean::class -> listOfClazzInstances.add(array[i].boolean ?: throw JSONUnmarshalException("fail"))
+                                                else -> listOfClazzInstances.add(array[i].unmarshal(listClazz) ?: throw JSONUnmarshalException("fail"))
+                                            }
+                                        }
+                                        return listOfClazzInstances
                                     }
-                                    return listOfClazzInstances
+                                } else {
+                                    // we have to handle the outer lists
+                                    val listOptional = isOptional[index]
+                                    if (listOptional) {
+                                        val listOfListInstances = mutableListOf<List<*>?>()
+
+                                        for (i in 0..(array.size - 1)) {
+                                            val list = array[i].list
+                                            if (list == null) {
+                                                listOfListInstances.add(null)
+                                            } else {
+                                                listOfListInstances.add(getListOfClazzInstances(list, listClazz, isOptional, index - 1))
+                                            }
+                                        }
+                                        return listOfListInstances
+                                    } else {
+                                        val listOfListInstances = mutableListOf<List<*>>()
+
+                                        for (i in 0..(array.size - 1)) {
+                                            val list = array[i].list
+                                            if (list == null) {
+                                                throw JSONUnmarshalException("fail")
+                                            } else {
+                                                val innerList = getListOfClazzInstances(list, listClazz, isOptional, index - 1)
+                                                if (innerList == null) {
+                                                    throw JSONUnmarshalException("fail")
+                                                } else {
+                                                    listOfListInstances.add(innerList)
+                                                }
+                                            }
+                                        }
+                                        return listOfListInstances
+                                    }
                                 }
                             }
-                            valueToSet = getListOfClazzInstances(array, listClazz!!, optional)
-                            if (valueToSet == null && !isNullable) {
-                                return null
+
+                            fun max(a: Int, b: Int) = if (a > b) a else b
+
+                            try {
+                                valueToSet = getListOfClazzInstances(array, listClazz!!, isOptional, max(0, isOptional.size - 2))
+                            } catch (e: JSONUnmarshalException) {
+                                if (!isNullable) {
+                                    return null
+                                }
                             }
+//                            if (valueToSet == null && !isNullable) {
+//                                return null
+//                            }
                         }
                     }
                 }
