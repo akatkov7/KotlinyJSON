@@ -246,4 +246,35 @@ class UnmarshalTest : junit.framework.TestCase() {
         assertNull(user.names[2])
     }
 
+    @SnakeCase
+    data class OverwatchPlayStats(val winPercentage: Double, val wins: Int, @JSONKey("lost") val losses: Int, @JSONKey("played") val gamesPlayed: Int)
+    data class OverwatchProfile(val username: String, val level: Int, @JSONKey("games") val playStats: OverwatchPlayStats, val playtime: String, val avatar: String)
+
+    fun testOverwatchAPI() {
+        val jsonString = """{
+  "data": {
+    "username": "Username",
+    "level": 22,
+    "games": {
+      "win_percentage": "51.0",
+      "wins": "45",
+      "lost": 44,
+      "played": "89"
+    },
+    "playtime": "10 hours",
+    "avatar": "https://d1u1mce87gyfbn.cloudfront.net/game/unlocks/0x025000000000030D.png"
+  }
+}"""
+        val json = JSON(jsonString)
+        val profile = json["data"].unmarshal(OverwatchProfile::class)
+
+        assertNotNull(profile)
+        profile!!
+        assertEquals("Username", profile.username)
+        assertEquals(22, profile.level)
+        assertEquals(45, profile.playStats.wins)
+        assertEquals(89, profile.playStats.gamesPlayed)
+        assertEquals("10 hours", profile.playtime)
+    }
+
 }
