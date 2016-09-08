@@ -47,7 +47,7 @@ artifacts {
 
 def getBintrayAPIKey() {
     def Properties props = new Properties()
-    props.load(new FileInputStream(new File('bintray.properties')))
+    props.load(new FileInputStream(new File("$projectDir/bintray.properties")))
     return props['API_KEY']
 }
 
