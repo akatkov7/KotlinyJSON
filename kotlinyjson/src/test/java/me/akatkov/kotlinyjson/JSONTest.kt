@@ -29,4 +29,14 @@ class JSONTest : junit.framework.TestCase() {
 
         assertEquals(3, json["bar"].list?.size)
     }
+
+    fun testEmpty() {
+        val jsonString = ""
+        val json = JSON(jsonString)
+
+        assertTrue(json.isEmpty())
+        json["test"] = "value"
+        assertFalse(json.isEmpty())
+        assertTrue(JSON(null).isEmpty())
+    }
 }

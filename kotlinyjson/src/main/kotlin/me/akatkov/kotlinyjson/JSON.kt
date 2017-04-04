@@ -5,7 +5,13 @@ import org.json.JSONException
 import org.json.JSONObject
 import java.io.*
 import java.util.*
-import kotlin.reflect.*
+import kotlin.reflect.KClass
+import kotlin.reflect.KParameter
+import kotlin.reflect.KProperty1
+import kotlin.reflect.KType
+import kotlin.reflect.full.createType
+import kotlin.reflect.full.declaredMemberProperties
+import kotlin.reflect.full.defaultType
 import kotlin.reflect.jvm.javaField
 
 @Target(AnnotationTarget.CLASS)
@@ -85,10 +91,13 @@ class JSON {
 
     constructor() : this("{}")
 
-    constructor(string: String) : this(string.toByteArray())
+    constructor(string: String?) : this(string?.toByteArray() ?: ByteArray(0))
 
     constructor(bytes: ByteArray) {
-        val string = String(bytes, Charsets.UTF_8)
+        var string = String(bytes, Charsets.UTF_8)
+        if (string.isEmpty()) {
+            string = "{}"
+        }
 
         try {
             jsonObject = JSONObject(string)
@@ -265,11 +274,12 @@ class JSON {
     }
 
     fun isEmpty(): Boolean {
-        return (map?.isEmpty() ?: true) || (list?.isEmpty() ?: true)
-    }
-
-    fun isNullJSON(): Boolean {
-        return map == null && list == null
+        if (map != null) {
+            return map?.isEmpty() == true
+        } else if (list != null) {
+            return list?.isEmpty() == true
+        }
+        return true
     }
 
     val boolean: Boolean?
@@ -386,18 +396,13 @@ class JSON {
         return null
     }
 
-    private val _intNullable: Int? = null
-    private val _longNullable: Long? = null
-    private val _doubleNullable: Double? = null
-    private val _stringNullable: String? = null
-    private val _booleanNullable: Boolean? = null
     private val optionalMap: Map<String, KType> =
             hashMapOf(
-                    "Int?" to JSON::class.memberProperties.filter { it.name.equals("_intNullable") }.first().returnType,
-                    "Long?" to JSON::class.memberProperties.filter { it.name.equals("_longNullable") }.first().returnType,
-                    "Double?" to JSON::class.memberProperties.filter { it.name.equals("_doubleNullable") }.first().returnType,
-                    "String?" to JSON::class.memberProperties.filter { it.name.equals("_stringNullable") }.first().returnType,
-                    "Boolean?" to JSON::class.memberProperties.filter { it.name.equals("_booleanNullable") }.first().returnType)
+                    "Int?" to Int::class.createType(nullable = true),
+                    "Long?" to Long::class.createType(nullable = true),
+                    "Double?" to Double::class.createType(nullable = true),
+                    "String?" to String::class.createType(nullable = true),
+                    "Boolean?" to Boolean::class.createType(nullable = true))
 
     fun <T : Any> unmarshal(clazz: KClass<T>): T? {
         val propertyMap = unmarshalHelper(clazz) ?: return null
@@ -465,7 +470,7 @@ class JSON {
                 Boolean::class.defaultType -> valueToSet = this[keyName].boolean ?: return null
                 optionalMap["Boolean?"]!! -> valueToSet = this[keyName].boolean
                 else -> {
-                    if (this[keyName].isNullJSON()) {
+                    if (this[keyName].isEmpty()) {
                         if (isNullable) {
                             valueToSet = null
                         } else {
