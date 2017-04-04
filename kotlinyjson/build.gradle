@@ -33,6 +33,7 @@ dependencies {
     compile 'com.android.support:appcompat-v7:25.3.1'
     compile "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
     compile "org.jetbrains.kotlin:kotlin-reflect:$kotlin_version"
+    // TODO: figure out why removing this breaks the entire world
     compile "org.json:json:20160212"
 }
 
