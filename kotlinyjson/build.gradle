@@ -4,17 +4,17 @@ apply plugin: 'com.jfrog.bintray'
 apply plugin: 'com.github.dcendents.android-maven'
 
 group = 'me.akatkov.kotlinyjson' // Change this to match your package name
-version = '0.2' // Change this to match your version number
+version = '0.3' // Change this to match your version number
 
 android {
-    compileSdkVersion 24
-    buildToolsVersion "24.0.2"
+    compileSdkVersion 25
+    buildToolsVersion '25.0.2'
 
     defaultConfig {
         minSdkVersion 15
-        targetSdkVersion 24
+        targetSdkVersion 25
         versionCode 1
-        versionName "0.2"
+        versionName "0.3"
     }
     buildTypes {
         release {
@@ -30,7 +30,7 @@ android {
 dependencies {
     compile fileTree(dir: 'libs', include: ['*.jar'])
     testCompile 'junit:junit:4.12'
-    compile 'com.android.support:appcompat-v7:24.2.0'
+    compile 'com.android.support:appcompat-v7:25.3.1'
     compile "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
     compile "org.jetbrains.kotlin:kotlin-reflect:$kotlin_version"
     compile "org.json:json:20160212"
@@ -59,10 +59,10 @@ bintray {
         name = 'KotlinyJSON'
 
         version {
-            name = '0.2'
+            name = '0.3'
             desc = 'A simple JSON class that has better usage than org.JSON with JSON to Object, Object to JSON conversions.'
             released  = new Date()
-            vcsTag = '0.2'
+            vcsTag = '0.3'
         }
 
         licenses = ['MIT']
