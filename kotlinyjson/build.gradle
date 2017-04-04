@@ -4,7 +4,7 @@ apply plugin: 'com.jfrog.bintray'
 apply plugin: 'com.github.dcendents.android-maven'
 
 group = 'me.akatkov.kotlinyjson' // Change this to match your package name
-version = '0.3' // Change this to match your version number
+version = '0.3.2' // Change this to match your version number
 
 android {
     compileSdkVersion 25
@@ -14,7 +14,7 @@ android {
         minSdkVersion 15
         targetSdkVersion 25
         versionCode 1
-        versionName "0.3"
+        versionName "0.3.2"
     }
     buildTypes {
         release {
@@ -30,7 +30,6 @@ android {
 dependencies {
     compile fileTree(dir: 'libs', include: ['*.jar'])
     testCompile 'junit:junit:4.12'
-    compile 'com.android.support:appcompat-v7:25.3.1'
     compile "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
     compile "org.jetbrains.kotlin:kotlin-reflect:$kotlin_version"
     // TODO: figure out why removing this breaks the entire world
@@ -46,6 +45,22 @@ artifacts {
     archives generateSourcesJar
 }
 
+install {
+    repositories.mavenInstaller {
+        pom.project {
+            name 'KotlinyJSON'
+            description 'A simple JSON class that has better usage than org.JSON with JSON to Object, Object to JSON conversions.'
+            url 'https://github.com/akatkov7/KotlinyJSON'
+            inceptionYear '2016'
+
+            packaging 'aar'
+            groupId 'me.akatkov.kotlinyjson'
+            artifactId 'kotlinyjson'
+            version '0.3.2'
+        }
+    }
+}
+
 def getBintrayAPIKey() {
     def Properties props = new Properties()
     props.load(new FileInputStream(new File("$projectDir/bintray.properties")))
@@ -55,15 +70,17 @@ def getBintrayAPIKey() {
 bintray {
     user = 'akatkov'
     key = getBintrayAPIKey()
+    override = true
     pkg {
         repo = 'maven'
         name = 'KotlinyJSON'
+        override = true
 
         version {
-            name = '0.3'
+            name = '0.3.2'
             desc = 'A simple JSON class that has better usage than org.JSON with JSON to Object, Object to JSON conversions.'
             released  = new Date()
-            vcsTag = '0.3'
+            vcsTag = '0.3.2'
         }
 
         licenses = ['MIT']
@@ -72,3 +89,11 @@ bintray {
     }
     configurations = ['archives']
 }
+
+ext {
+    PUBLISH_GROUP_ID = 'me.akatkov.kotlinyjson'
+    PUBLISH_ARTIFACT_ID = 'kotlinyjson'
+    PUBLISH_VERSION = '0.3.2'
+}
+
+apply from: 'https://raw.githubusercontent.com/blundell/release-android-library/master/android-release-aar.gradle'
