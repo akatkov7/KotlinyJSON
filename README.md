@@ -50,7 +50,7 @@ This library can be used in your project through Gradle:
 Just add the dependency:
 ```gradle
 dependencies {
-    compile 'me.akatkov.kotlinyjson:kotlinyjson:0.2'
+    compile 'me.akatkov.kotlinyjson:kotlinyjson:0.3.2'
 }
 ```
 
