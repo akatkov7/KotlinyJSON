@@ -289,6 +289,12 @@ class JSON {
         return boolean ?: default
     }
 
+    /// Returns either the boolean value or the default false if the value does not exist
+    val booleanValue: Boolean
+        get() {
+            return this.boolean ?: false
+        }
+
     val int: Int?
         get() {
             return getValue({ o, n -> o.getInt(n) }, { a, i -> a.getInt(i) })
@@ -297,6 +303,12 @@ class JSON {
     fun intValue(default: Int): Int {
         return int ?: default
     }
+
+    /// Returns either the int value or the default 0 if the value does not exist
+    val intValue: Int
+        get() {
+            return this.int ?: 0
+        }
 
     val long: Long?
         get() {
@@ -307,6 +319,12 @@ class JSON {
         return long ?: default
     }
 
+    /// Returns either the long value or the default 0L if the value does not exist
+    val longValue: Long
+        get() {
+            return this.long ?: 0L
+        }
+
     val double: Double?
         get() {
             return getValue({ o, n -> o.getDouble(n) }, { a, i -> a.getDouble(i) })
@@ -316,6 +334,12 @@ class JSON {
         return double ?: default
     }
 
+    /// Returns either the double value or the default 0.0 if the value does not exist
+    val doubleValue: Double
+        get() {
+            return this.double ?: 0.0
+        }
+
     val string: String?
         get() {
             return getValue({ o, n -> if (o.isNull(n)) null else o.getString(n) }, { a, i -> if (a.isNull(i)) null else a.getString(i) })
@@ -324,6 +348,12 @@ class JSON {
     fun stringValue(default: String): String {
         return getValue({ o, n -> if (o.isNull(n)) null else o.getString(n) }, { a, i -> if (a.isNull(i)) null else a.getString(i) }) ?: default
     }
+
+    /// Returns either the string value or the default "" if the value does not exist
+    val stringValue: String
+        get() {
+            return this.string ?: ""
+        }
 
     val list: List<JSON>?
         get() {
@@ -339,6 +369,16 @@ class JSON {
             }
         }
 
+    fun listValue(default: List<JSON>): List<JSON> {
+        return this.list ?: default
+    }
+
+    /// Returns either the list value or an empty listOf<JSON>() if the value does not exist
+    val listValue: List<JSON>
+        get() {
+            return this.list ?: listOf()
+        }
+
     val map: Map<String, JSON>?
         get() {
             val names = getJSONObject()?.keys()
@@ -352,6 +392,16 @@ class JSON {
             } else {
                 null
             }
+        }
+
+    fun mpValue(default: Map<String, JSON>): Map<String, JSON> {
+        return this.map ?: default
+    }
+
+    /// Returns either the map value or an empty listOf<JSON>() if the value does not exist
+    val mapValue: Map<String, JSON>
+        get() {
+            return this.map ?: mapOf()
         }
 
     fun rawBytes(): ByteArray? {
