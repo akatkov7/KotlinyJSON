@@ -167,12 +167,12 @@ class UnmarshalTest : junit.framework.TestCase() {
         assertEquals("Johnny", user.userName)
     }
 
-    @CamelCase
-    data class CamelUser(var userId: Long = 0, var userName: String = "")
+    @PascalCase
+    data class PascalUser(var userId: Long = 0, var userName: String = "")
 
     fun testCamelMutableSuccessUnmarshal() {
         val json = JSON("{\"UserName\":\"Johnny\",\"UserId\":1234567}")
-        val user = json.unmarshal(CamelUser::class)
+        val user = json.unmarshal(PascalUser::class)
 
         assertNotNull(user)
         user!!

@@ -8,10 +8,8 @@ import java.util.*
 import kotlin.reflect.KClass
 import kotlin.reflect.KParameter
 import kotlin.reflect.KProperty1
-import kotlin.reflect.KType
 import kotlin.reflect.full.createType
 import kotlin.reflect.full.declaredMemberProperties
-import kotlin.reflect.full.defaultType
 import kotlin.reflect.jvm.javaField
 
 @Target(AnnotationTarget.CLASS)
@@ -23,10 +21,10 @@ annotation class SnakeCase
 
 @Target(AnnotationTarget.CLASS)
 /**
- * This annotation on a class will convert properties from camelCase to CamelCase when
+ * This annotation on a class will convert properties from camelCase to PascalCase when
  * unmarshaling/marshaling from/to JSON e.g. propertyName -> PropertyName
  */
-annotation class CamelCase
+annotation class PascalCase
 
 @Target(AnnotationTarget.PROPERTY)
 /**
@@ -70,7 +68,7 @@ annotation class MarshalNull(val strategy: MarshalNullStrategy = MarshalNullStra
 /**
  * This exception will be thrown when there is an issue with marshaling that is an user error.
  */
-class JSONMarshalException(val msg: String): Exception(msg)
+class JSONMarshalException(msg: String): Exception(msg)
 
 class JSON {
     private var jsonObject: JSONObject?
@@ -153,7 +151,7 @@ class JSON {
 
         fun getValueToSet(list: List<*>): Any? {
             // empty list or all nulls
-            if (list.isEmpty() || list.filterNotNull().size == 0) {
+            if (list.isEmpty() || list.filterNotNull().isEmpty()) {
                 return JSONArray(list)
             }
 
@@ -198,7 +196,7 @@ class JSON {
 
         fun getValueToSet(list: List<*>): Any? {
             // empty list or all nulls
-            if (list.isEmpty() || list.filterNotNull().size == 0) {
+            if (list.isEmpty() || list.filterNotNull().isEmpty()) {
                 return JSONArray(list)
             }
 
@@ -330,29 +328,29 @@ class JSON {
     val list: List<JSON>?
         get() {
             val length = getJSONArray()?.length()
-            if (length is Int) {
+            return if (length is Int) {
                 val result = ArrayList<JSON>()
                 for (index in 0..(length - 1)) {
                     result.add(JSON(this, index))
                 }
-                return result
+                result
             } else {
-                return null
+                null
             }
         }
 
     val map: Map<String, JSON>?
         get() {
             val names = getJSONObject()?.keys()
-            if (names is Iterator<String>) {
+            return if (names is Iterator<String>) {
                 val result = HashMap<String, JSON>()
                 while (names.hasNext()) {
                     val name = names.next()
-                    result.put(name, get(name))
+                    result[name] = get(name)
                 }
-                return result
+                result
             } else {
-                return null
+                null
             }
         }
 
@@ -396,14 +394,6 @@ class JSON {
         return null
     }
 
-    private val optionalMap: Map<String, KType> =
-            hashMapOf(
-                    "Int?" to Int::class.createType(nullable = true),
-                    "Long?" to Long::class.createType(nullable = true),
-                    "Double?" to Double::class.createType(nullable = true),
-                    "String?" to String::class.createType(nullable = true),
-                    "Boolean?" to Boolean::class.createType(nullable = true))
-
     fun <T : Any> unmarshal(clazz: KClass<T>): T? {
         val propertyMap = unmarshalHelper(clazz) ?: return null
         val propertyNames = propertyMap.keys.map { it.name }
@@ -434,8 +424,8 @@ class JSON {
             clazz.annotations.forEach {
                 if (it is SnakeCase) {
                     keyName = prop.name.toSnakeCase()
-                } else if (it is CamelCase) {
-                    keyName = prop.name.toCamelCase()
+                } else if (it is PascalCase) {
+                    keyName = prop.name.toPascalCase()
                 }
             }
             var ignored = false
@@ -459,16 +449,16 @@ class JSON {
             var valueToSet: Any? = null
             when(prop.returnType) {
                 // if the property isn't nullable, then we can return because this unmarshal won't succeed
-                Int::class.defaultType -> valueToSet = this[keyName].int ?: return null
-                optionalMap["Int?"]!! -> valueToSet = this[keyName].int
-                Long::class.defaultType -> valueToSet = this[keyName].long ?: return null
-                optionalMap["Long?"]!! -> valueToSet = this[keyName].long
-                Double::class.defaultType -> valueToSet = this[keyName].double ?: return null
-                optionalMap["Double?"]!! -> valueToSet = this[keyName].double
-                String::class.defaultType -> valueToSet = this[keyName].string ?: return null
-                optionalMap["String?"]!! -> valueToSet = this[keyName].string
-                Boolean::class.defaultType -> valueToSet = this[keyName].boolean ?: return null
-                optionalMap["Boolean?"]!! -> valueToSet = this[keyName].boolean
+                Int::class.createType() -> valueToSet = this[keyName].int ?: return null
+                Int::class.createType(nullable = true) -> valueToSet = this[keyName].int
+                Long::class.createType() -> valueToSet = this[keyName].long ?: return null
+                Long::class.createType(nullable = true) -> valueToSet = this[keyName].long
+                Double::class.createType() -> valueToSet = this[keyName].double ?: return null
+                Double::class.createType(nullable = true) -> valueToSet = this[keyName].double
+                String::class.createType() -> valueToSet = this[keyName].string ?: return null
+                String::class.createType(nullable = true) -> valueToSet = this[keyName].string
+                Boolean::class.createType() -> valueToSet = this[keyName].boolean ?: return null
+                Boolean::class.createType(nullable = true) -> valueToSet = this[keyName].boolean
                 else -> {
                     if (this[keyName].isEmpty()) {
                         if (isNullable) {
@@ -619,8 +609,8 @@ class JSON {
                 if (it is SnakeCase) {
                     keyName = prop.name.toSnakeCase()
                 }
-                if (it is CamelCase) {
-                    keyName = prop.name.toCamelCase()
+                if (it is PascalCase) {
+                    keyName = prop.name.toPascalCase()
                 }
                 if (it is MarshalNull) {
                     marshalNullStrategy = it.strategy
@@ -654,10 +644,10 @@ class JSON {
 
             val value = prop.get(instance)
             when(prop.returnType) {
-                Int::class.defaultType, Long::class.defaultType, Double::class.defaultType, String::class.defaultType, Boolean::class.defaultType -> {
+                Int::class.createType(), Long::class.createType(), Double::class.createType(), String::class.createType(), Boolean::class.createType() -> {
                     instanceJSON[keyName] = value
                 }
-                optionalMap["Int?"]!!, optionalMap["Long?"]!!, optionalMap["Double?"]!!, optionalMap["String?"]!!, optionalMap["Boolean?"]!! -> {
+                Int::class.createType(nullable = true), Long::class.createType(nullable = true), Double::class.createType(nullable = true), String::class.createType(nullable = true), Boolean::class.createType(nullable = true) -> {
                     if (value != null) {
                         instanceJSON[keyName] = value
                     } else {
@@ -739,12 +729,12 @@ class JSON {
 
     private fun String.toSnakeCase(): String {
         // paramName -> param_name
-        return this.replace(Regex("[A-Z]"), {result ->
+        return this.replace(Regex("[A-Z]")) { result ->
             "_" + result.value.toLowerCase()
-        })
+        }
     }
 
-    private fun String.toCamelCase(): String {
+    private fun String.toPascalCase(): String {
         // paramName -> ParamName
         if (this.isEmpty()) return this
         return this.substring(0, 1).toUpperCase() + this.substring(1)

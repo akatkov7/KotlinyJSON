@@ -141,11 +141,11 @@ class MarshalTest : junit.framework.TestCase() {
         assertEquals("Johnny", json["user_name"].string)
     }
 
-    @CamelCase
-    data class CamelUser(var userId: Long = 0, var userName: String = "")
+    @PascalCase
+    data class PascalUser(var userId: Long = 0, var userName: String = "")
 
     fun testCamelMutableSuccessMarshal() {
-        val user = CamelUser(1234567, "Johnny")
+        val user = PascalUser(1234567, "Johnny")
         val json = JSON().marshal(user)
 
         assertEquals(1234567, json["UserId"].int)
