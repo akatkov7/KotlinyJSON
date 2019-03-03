@@ -396,7 +396,7 @@ class JSON {
             }
         }
 
-    fun mpValue(default: Map<String, JSON>): Map<String, JSON> {
+    fun mapValue(default: Map<String, JSON>): Map<String, JSON> {
         return this.map ?: default
     }
 
